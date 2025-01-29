@@ -1,0 +1,204 @@
+---
+title: "Fullerton_Stochastics_Covid-19_Project"
+author: "William V. Fullerton"
+date: "2024-11-20"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Load in the necessary packages
+```{r}
+library(expm)
+source("Matlib Functions.R")
+```
+
+#Load in the Data
+```{r}
+Covid_Data <- read.csv("Covid_Mc_chains.csv")
+```
+
+#Create the Matrix
+```{r}
+n_states <- 8
+
+#Storage matrix
+P <- matrix(0, nrow = n_states, ncol = n_states, 
+            dimnames = list(c("(1) Immune", "(2) Non-Infected", "(3) Infected-Asymptomatic", "(4) Infected-Symptomatic", "(5) Hospitalized", "(6) ICU", "(7) Ventilator", "(8) Death"), c("(1) Imm", "(2) N-I", "(3) I-A", "(4) I-Sy", "(5) Hosp", "(6) ICU" , "(7) Vent", "(8) Dead")), byrow = TRUE)
+
+
+#Determine the counts for each state
+for (i in 1:1016) {
+  initial <- Covid_Data[i,]
+  for (j in 1:30) {
+    x1 <- as.numeric(initial[j])
+    x2 <- as.numeric(initial[j+1])
+    P[x1,x2] <- P[x1,x2] + 1
+  }
+}
+
+
+#Use the counts to get their proportions and create the P-Matrix 
+for (i in 1:n_states) {
+  total <- sum(P[i,])
+  P[i,] <- (P[i,]/total)
+}
+
+round(P, 4)
+```
+
+##Analysis
+#Part One
+```{r}
+#Computing the R-Matrix
+R <- P%^%0
+
+for (i in 1:1000) {
+  R <- R + P%^%i
+}
+round(R, 4)
+
+```
+
+#Part Two
+```{r}
+#Create the S-Matrix
+P_T <- P[c(2:7), c(2:7)]
+
+I <- diag(1, nrow = n_states-2, ncol = n_states-2)
+
+S <- solve(I-P_T)
+round(S, 4)
+
+#Create the F-Matrix
+delta <- diag(1,6)
+F_T <- matrix(0, nrow = n_states-2, ncol = n_states-2)
+for (i in 1:6) {
+  for (j in 1:6) {
+    F_T[i,j] <- (S[i,j]-delta[i,j])/S[j,j]
+  }
+}
+
+round(F_T, 4)
+
+#Interpreting Non-Infected
+S[2,]
+F_T[2,]
+
+#From the S and F matrices, we can interperate on average how many times someone who is in the state of being Non-Infected we move onto the over states. As Immune and Death are absorbent states, they are inherently recurrssive, meaning that they will not be considered in this analysis. From these matrices, we can see that someone who is Non-Infected will become Infected-Asymptomatic 1.56 times, Infected-Symptomatic 2.13 times, Hospitalized 5.29 times, go into the ICU 0.96 times, and be put on a Ventilator 0.43 times. 
+
+
+```
+
+#Part Three
+```{r}
+#Long-Run proportions
+#We can compute these, as the matrix allows for the processes required to calculate them. Primarily being that of stationary increments.
+pi <- matrix(0, nrow = n_states, ncol = n_states, byrow = TRUE)
+for (i in 1:8) {
+  pi[i,i] <- P[i,i]-1
+}
+a <- rep(1, 8)
+A <- rbind(pi,a)
+b <- c(rep(0,8),1)
+gaussianElimination(A,b)
+
+#3(b)
+p_immune <- 0.2
+p_noninfected <- 0.8
+alpha <- c(p_immune, p_noninfected, rep(0,6))
+Pa <- alpha%*%(P%^%20)
+Pa
+
+sum(Pa[6:8])
+#A person in the study has a 5.1% chance of being in states 6-8, in 20 days.
+
+#Simulation of 20 days
+set.seed(9110)
+chain.l <- 20
+N <- 8
+X <- rep(0, chain.l)
+
+for (i in 1:chain.l) {
+  X[i] <- sample(c(1:N),1, prob = P[,X[i]+1]) 
+}
+X
+
+sum(X>=6)/20
+#The simulated probability is zero.
+```
+
+#Part Four
+```{r}
+#Conditional Death probabilities
+visit_two <- numeric(30)
+visit_three <- numeric(30)
+visit_four <- numeric(30)
+visit_five <- numeric(30)
+visit_six <- numeric(30)
+visit_seven <- numeric(30)
+Y <- matrix(0, nrow = n_states, ncol = n_states, byrow =  TRUE)
+
+for(i in 1:30){
+  Y <- P%^%i
+  visit_two[i] <- Y[2,8]
+  visit_three[i] <- Y[3,8]
+  visit_four[i] <- Y[4,8]
+  visit_five[i] <- Y[5,8]
+  visit_six[i] <- Y[6,8]
+  visit_seven[i] <- Y[7,8]
+}
+
+#Plot of conditional Death Probabilities
+plot(visit_two, type = "l", col="blue", lty=2, xlab = "Day", ylab = "Probability of Visit", main = "Probability of States, as Days Pass", ylim = c(0:1))
+lines(x = c(1:30), y = visit_three, col="red", lty=2)
+lines(x = c(1:30), y =visit_four, col="green", lty=2)
+lines(x = c(1:30), y =visit_five, col="orange", lty=2)
+lines(x = c(1:30), y =visit_six, col="purple", lty=2)
+lines(x = c(1:30), y =visit_seven, col="hotpink", lty=2)
+legend(0,1, legend = c("P28", "P38", "P48", "P58", "P68", "P78"), fill = c("blue","red","green","orange","purple","hotpink"))
+
+#In general, the lines all begin with a very low probability, but then begin to asymptote to a higher probability. This is most noticible with P68 and P78, as they begin the plato in nature, with the more days that pass by. From the graph we can see that the state with the best chances of death is that of someone who is on a ventilator. The inverse is true for someone who is non-infected. This would appear to meet a general assumption about the nature of diseases, and how different stages can lead to death. The general nature of these graphs is that of a logistical pattern, where we begin low, ramp out at differing levels of intensity, but then begin to even off and stop grow. This fits with the overall nature of transients states, as when tested to their limits of infinity, they will approach a finite number, unlike that of recurrsive states which themselves approach infinity. Overall, this graph shows interesting trends in who is most likely to die, given that they have started in a particular state, as well as matching what we would believe to happen given the sercomstances of the nature of the states both in a mathematical and applicable sense.
+```
+
+
+#Part Five
+```{r}
+#Condtional Probabilities, from starting off non-infected
+visit_one <- numeric(30)
+visit_two <- numeric(30)
+visit_three <- numeric(30)
+visit_four <- numeric(30)
+visit_five <- numeric(30)
+visit_six <- numeric(30)
+visit_seven <- numeric(30)
+visit_eight <- numeric(30)
+Y <- matrix(0, nrow = n_states, ncol = n_states, byrow =  TRUE)
+
+for (i in 1:30) {
+  Y <- P%^%i
+  visit_one[i] <- Y[2,1]
+  visit_two[i] <- Y[2,2]
+  visit_three[i] <- Y[2,3]
+  visit_four[i] <- Y[2,4]
+  visit_five[i] <- Y[2,5]
+  visit_six[i] <- Y[2,6]
+  visit_seven[i] <- Y[2,7]
+  visit_eight[i] <- Y[2,8]
+}
+
+plot(visit_one, type = "l", col="blue", lty=2, xlab = "Day", ylab = "Probability of Visit", main = "Probability of States, as Days Pass", ylim = c(0:1))
+lines(x = c(1:30), y = visit_two, col = "lightgrey", lty=2)
+lines(x = c(1:30), y = visit_three, col="red", lty=2)
+lines(x = c(1:30), y = visit_four, col="green", lty=2)
+lines(x = c(1:30), y = visit_five, col="orange", lty=2)
+lines(x = c(1:30), y = visit_six, col="purple", lty=2)
+lines(x = c(1:30), y = visit_seven, col="hotpink", lty=2)
+lines(x = c(1:30), y = visit_eight, col="steelblue", lty=2)
+legend(0,1, legend = c("P21","P22", "P23", "P24", "P25", "P26", "P27", "P28"), fill = c("blue","lightgrey","red","green","orange","purple","hotpink","steelblue"))
+
+#Most of the lines are increasing at a very small rate, except for P22 and P21. This makes sense as staying non-infecting is less and less likely as a pandemic rages on; moreover, once you become non-infected and go to immune, you'll never leave that state. It was fascinating to see that the line corresponding with death was not as shaprly increasing as it could have been. I would have expected it to match, or at least be around the same area as that of immune. Seeing P23 slowly begin to decrease was worthy of note as well, but nothing so staggering that is worhty of any sort of sensitivty analysis.
+```
+
