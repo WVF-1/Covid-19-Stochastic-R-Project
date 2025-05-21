@@ -19,8 +19,6 @@ The model outputs:
 - The **conditional probabilities** of being in each health state after a certain number of days.
 - Numerical results and visualizations illustrating how the population shifts between states over time.
 
-## Getting Started
-
 ### Prerequisites
 
 You will need to have R and the following libraries installed:
