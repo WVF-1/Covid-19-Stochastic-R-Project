@@ -1,0 +1,30 @@
+# Covid-19 Stochastic R Project
+
+This project models the progression of COVID-19 through various health states in patients using stochastic methods. The focus is on understanding the probabilistic transitions between states such as healthy, infected, recovered, and deceased using stochastic matrix computations.
+
+## Project Objective
+
+To simulate and analyze the state transitions of individuals affected by COVID-19 using stochastic modeling techniques, specifically employing **S (state) matrices** and **F (transition) matrices**.
+
+## Methodology
+
+- **Stochastic Modeling**: The model assumes that a patient's COVID-19 progression follows a stochastic process.
+- **S Matrix**: Represents the initial state distribution of the population.
+- **F Matrix**: Defines the transition probabilities between health states.
+- **Iterative Simulation**: The simulation uses matrix multiplication to project the future state distribution over several days.
+
+## Output
+
+The model outputs:
+- The **conditional probabilities** of being in each health state after a certain number of days.
+- Numerical results and visualizations illustrating how the population shifts between states over time.
+
+## Getting Started
+
+### Prerequisites
+
+You will need to have R and the following libraries installed:
+
+```r
+install.packages("ggplot2")
+install.packages("dplyr")
