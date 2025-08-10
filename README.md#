@@ -1,4 +1,4 @@
-# Covid-19 Stochastic R Project
+#Covid-19 Stochastic R Project
 
 This project models the progression of COVID-19 through various health states in patients using stochastic methods. The focus is on understanding the probabilistic transitions between states such as healthy, infected, recovered, and deceased using stochastic matrix computations.
 
